@@ -62,7 +62,10 @@ Google Colab with NVCC Compiler
 
 ## PROGRAM:
 ```
-%%cuda
+!pip install git+https://github.com/andreinechaev/nvcc4jupyter.git
+%load_ext nvcc4jupyter
+
+%%writefile mattranpose.cu
 #include <stdio.h>
 #include <cuda_runtime.h>
 #include <cuda.h>
@@ -314,6 +317,7 @@ int main(int argc, char **argv)
 {
     // set up device
     int dev = 0;
+    double iStart,iElaps;
     cudaDeviceProp deviceProp;
     CHECK(cudaGetDeviceProperties(&deviceProp, dev));
     printf("%s at ", argv[0]);
@@ -340,12 +344,16 @@ int main(int argc, char **argv)
     printf("<<< grid (%d,%d) block (%d,%d)>>>\n", grid.x, grid.y, block.x,
             block.y);
 
+   // double iStart,iElaps;
+
     // allocate device memory
     int *d_C;
+    iStart=seconds();
     CHECK(cudaMalloc((int**)&d_C, nBytes));
     int *gpuRef  = (int *)malloc(nBytes);
 
     CHECK(cudaMemset(d_C, 0, nBytes));
+
     setRowReadRow<<<grid, block>>>(d_C);
     CHECK(cudaMemcpy(gpuRef, d_C, nBytes, cudaMemcpyDeviceToHost));
 
@@ -385,6 +393,8 @@ CHECK(cudaMemset(d_C, 0, nBytes));
     CHECK(cudaMemcpy(gpuRef, d_C, nBytes, cudaMemcpyDeviceToHost));
 
     if(iprintf)  printData("setRowReadColDynPad ", gpuRef, nx * ny);
+    iElaps=seconds()-iStart;
+    printf("Elapsed time %f sec: \n", iElaps);
 
     // free host and device memory
     CHECK(cudaFree(d_C));
@@ -394,6 +404,10 @@ CHECK(cudaMemset(d_C, 0, nBytes));
     CHECK(cudaDeviceReset());
     return EXIT_SUCCESS;
 }
+
+!nvcc -arch=sm_75 mattranpose.cu -o mattran
+!nvprof ./mattran
+!nvprof --print-gpu-trace ./mattran
 ```
 
 ## OUTPUT:
